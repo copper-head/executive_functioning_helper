@@ -8,15 +8,8 @@ import WeeklyPlanning from './pages/WeeklyPlanning';
 import Chat from './pages/Chat';
 import Goals from './pages/Goals';
 import DailyPlanning from './pages/DailyPlanning';
+import Dashboard from './pages/Dashboard';
 import { useAuthStore } from './stores/authStore';
-
-function DashboardPage() {
-  return <div className="p-4">Dashboard</div>;
-}
-
-function DailyPage() {
-  return <DailyPlanning />;
-}
 
 export default function App() {
   const checkAuth = useAuthStore((state) => state.checkAuth);
@@ -36,9 +29,9 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="/goals" element={<Goals />} />
-        <Route path="/daily" element={<DailyPage />} />
+        <Route path="/daily" element={<DailyPlanning />} />
         <Route path="/weekly" element={<WeeklyPlanning />} />
         <Route path="/chat" element={<Chat />} />
       </Route>
