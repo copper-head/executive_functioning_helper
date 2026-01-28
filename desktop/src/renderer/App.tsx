@@ -6,14 +6,11 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import WeeklyPlanning from './pages/WeeklyPlanning';
 import Chat from './pages/Chat';
+import Goals from './pages/Goals';
 import { useAuthStore } from './stores/authStore';
 
 function DashboardPage() {
   return <div className="p-4">Dashboard</div>;
-}
-
-function GoalsPage() {
-  return <div className="p-4">Goals</div>;
 }
 
 function DailyPage() {
@@ -39,7 +36,7 @@ export default function App() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/goals" element={<Goals />} />
         <Route path="/daily" element={<DailyPage />} />
         <Route path="/weekly" element={<WeeklyPlanning />} />
         <Route path="/chat" element={<Chat />} />
