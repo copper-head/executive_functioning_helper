@@ -1,0 +1,15 @@
+.runtime/
+.claude/
+.beads/
+.logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+build/
