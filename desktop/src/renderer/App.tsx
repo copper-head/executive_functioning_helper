@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import WeeklyPlanning from './pages/WeeklyPlanning';
+import Chat from './pages/Chat';
 import { useAuthStore } from './stores/authStore';
 
 function DashboardPage() {
@@ -17,10 +18,6 @@ function GoalsPage() {
 
 function DailyPage() {
   return <div className="p-4">Daily</div>;
-}
-
-function ChatPage() {
-  return <div className="p-4">Chat</div>;
 }
 
 export default function App() {
@@ -45,7 +42,7 @@ export default function App() {
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/daily" element={<DailyPage />} />
         <Route path="/weekly" element={<WeeklyPlanning />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/chat" element={<Chat />} />
       </Route>
     </Routes>
   );
