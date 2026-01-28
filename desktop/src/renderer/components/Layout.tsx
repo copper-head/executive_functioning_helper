@@ -1,18 +1,14 @@
 import { Outlet } from 'react-router-dom';
+import { Sidebar } from './Sidebar';
+import { useAuthStore } from '../stores/authStore';
 
 export default function Layout() {
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar placeholder */}
-      <aside className="w-64 bg-gray-900 text-white">
-        <div className="p-4">
-          <h1 className="text-xl font-bold">Exec Func Helper</h1>
-        </div>
-        {/* Navigation will be added here */}
-      </aside>
+  const { user, logout } = useAuthStore();
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar userEmail={user?.email} onLogout={logout} />
+      <main className="flex-1 ml-64 flex flex-col h-screen overflow-hidden">
         <Outlet />
       </main>
     </div>
