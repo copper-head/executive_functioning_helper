@@ -1,0 +1,98 @@
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  Home,
+  Target,
+  Calendar,
+  CalendarDays,
+  MessageSquare,
+  LogOut,
+  User,
+} from 'lucide-react';
+
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+}
+
+function NavItem({ to, icon, label }: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-gray-100 text-gray-900'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        }`
+      }
+    >
+      {icon}
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
+interface SidebarProps {
+  userEmail?: string;
+  onLogout?: () => void;
+}
+
+export function Sidebar({ userEmail, onLogout }: SidebarProps) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    }
+    navigate('/login');
+  };
+
+  const navItems = [
+    { to: '/', icon: <Home size={20} />, label: 'Dashboard' },
+    { to: '/goals', icon: <Target size={20} />, label: 'Goals' },
+    { to: '/daily', icon: <Calendar size={20} />, label: 'Daily Planning' },
+    { to: '/weekly', icon: <CalendarDays size={20} />, label: 'Weekly Planning' },
+    { to: '/chat', icon: <MessageSquare size={20} />, label: 'Agent Chat' },
+  ];
+
+  return (
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col">
+      {/* Logo/Brand */}
+      <div className="px-4 py-5 border-b border-gray-200">
+        <h1 className="text-lg font-semibold text-gray-900">EF Helper</h1>
+        <p className="text-xs text-gray-500 mt-0.5">Executive Functioning</p>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {navItems.map((item) => (
+          <NavItem key={item.to} {...item} />
+        ))}
+      </nav>
+
+      {/* User Section */}
+      <div className="border-t border-gray-200 px-3 py-4">
+        <div className="flex items-center gap-3 px-3 py-2 mb-2">
+          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+            <User size={16} className="text-gray-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {userEmail || 'User'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+        >
+          <LogOut size={20} />
+          <span>Log out</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+export default Sidebar;
