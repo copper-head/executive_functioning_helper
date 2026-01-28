@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import WeeklyPlanning from './pages/WeeklyPlanning';
 import { useAuthStore } from './stores/authStore';
 
 function DashboardPage() {
@@ -16,10 +17,6 @@ function GoalsPage() {
 
 function DailyPage() {
   return <div className="p-4">Daily</div>;
-}
-
-function WeeklyPage() {
-  return <div className="p-4">Weekly</div>;
 }
 
 function ChatPage() {
@@ -47,7 +44,7 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/daily" element={<DailyPage />} />
-        <Route path="/weekly" element={<WeeklyPage />} />
+        <Route path="/weekly" element={<WeeklyPlanning />} />
         <Route path="/chat" element={<ChatPage />} />
       </Route>
     </Routes>
