@@ -7,6 +7,7 @@ import Signup from './pages/Signup';
 import WeeklyPlanning from './pages/WeeklyPlanning';
 import Chat from './pages/Chat';
 import Goals from './pages/Goals';
+import DailyPlanning from './pages/DailyPlanning';
 import { useAuthStore } from './stores/authStore';
 
 function DashboardPage() {
@@ -14,7 +15,7 @@ function DashboardPage() {
 }
 
 function DailyPage() {
-  return <div className="p-4">Daily</div>;
+  return <DailyPlanning />;
 }
 
 export default function App() {

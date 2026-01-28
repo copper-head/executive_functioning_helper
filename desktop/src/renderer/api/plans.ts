@@ -1,11 +1,15 @@
 import { apiClient } from './client';
 
+export type ItemStatus = 'todo' | 'in_progress' | 'done' | 'skipped';
+export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+
 export interface PlanItem {
-  id: string;
+  id: number;
   title: string;
-  description?: string;
-  completed: boolean;
-  goal_id?: string;
+  notes?: string;
+  goal_id?: number;
+  status: ItemStatus;
+  priority: Priority;
   order: number;
   created_at: string;
   updated_at: string;
@@ -20,27 +24,33 @@ export interface WeeklyPlan {
   updated_at: string;
 }
 
+export type PlanStatus = 'draft' | 'active' | 'completed';
+
 export interface DailyPlan {
-  id: string;
+  id: number;
   date: string;
   items: PlanItem[];
-  weekly_plan_id?: string;
+  weekly_plan_id?: number;
+  summary?: string;
+  status: PlanStatus;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreatePlanItemRequest {
   title: string;
-  description?: string;
-  goal_id?: string;
+  notes?: string;
+  goal_id?: number;
+  priority?: Priority;
   order?: number;
 }
 
 export interface UpdatePlanItemRequest {
   title?: string;
-  description?: string;
-  completed?: boolean;
-  goal_id?: string;
+  notes?: string;
+  status?: ItemStatus;
+  goal_id?: number | null;
+  priority?: Priority;
   order?: number;
 }
 
@@ -82,6 +92,11 @@ export async function getDailyPlan(id: string): Promise<DailyPlan> {
 
 export async function getTodayPlan(): Promise<DailyPlan> {
   const response = await apiClient.get<DailyPlan>('/plans/daily/today');
+  return response.data;
+}
+
+export async function getDailyPlanByDate(date: string): Promise<DailyPlan> {
+  const response = await apiClient.get<DailyPlan>(`/plans/daily/by-date/${date}`);
   return response.data;
 }
 
