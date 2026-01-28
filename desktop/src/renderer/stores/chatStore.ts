@@ -4,7 +4,7 @@ import {
   Conversation,
   getConversations,
   getConversation,
-  deleteConversation,
+  deleteConversation as apiDeleteConversation,
   chatStream,
   ChatRequest,
 } from '../api/agent';
@@ -67,7 +67,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   deleteConversation: async (id: string) => {
     try {
-      await deleteConversation(id);
+      await apiDeleteConversation(id);
       const { conversations, currentConversation } = get();
       set({
         conversations: conversations.filter((c) => c.id !== id),
