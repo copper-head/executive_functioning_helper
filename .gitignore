@@ -2,14 +2,9 @@
 .claude/
 .beads/
 .logs/
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+.env
 .venv/
 venv/
-.env
-*.egg-info/
-dist/
-build/
