@@ -23,7 +23,7 @@ import { getStoredToken, clearStoredTokens } from '../api/client';
 /**
  * Authentication state shape and actions.
  */
-interface AuthState {
+export interface AuthState {
   /** Currently authenticated user, null if not logged in */
   user: User | null;
   /** JWT token from storage, null if not logged in */

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '../../test/utils';
+import { render, screen, fireEvent } from '../../test/utils';
 import Chat from './Chat';
 import * as chatStore from '../stores/chatStore';
 import type { Conversation, Message } from '../api/agent';
