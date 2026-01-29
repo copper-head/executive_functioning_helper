@@ -182,9 +182,10 @@ async def get_daily_plan_by_date(
     result = await db.execute(
         select(DailyPlan)
         .where(DailyPlan.date == plan_date, DailyPlan.user_id == current_user.id)
+        .order_by(DailyPlan.created_at.desc())
         .options(selectinload(DailyPlan.items))
     )
-    plan = result.scalar_one_or_none()
+    plan = result.scalars().first()
 
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Daily plan not found for this date")

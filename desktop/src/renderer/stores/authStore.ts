@@ -31,10 +31,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (data: LoginRequest) => {
     set({ isLoading: true });
     try {
-      const response = await apiLogin(data);
+      await apiLogin(data);
+      const user = await getCurrentUser();
       set({
-        user: response.user,
-        token: response.access_token,
+        user,
+        token: getStoredToken(),
         isAuthenticated: true,
         isLoading: false,
       });
@@ -47,10 +48,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   signup: async (data: SignupRequest) => {
     set({ isLoading: true });
     try {
-      const response = await apiSignup(data);
+      await apiSignup(data);
+      const user = await getCurrentUser();
       set({
-        user: response.user,
-        token: response.access_token,
+        user,
+        token: getStoredToken(),
         isAuthenticated: true,
         isLoading: false,
       });

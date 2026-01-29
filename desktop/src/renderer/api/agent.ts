@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, getStoredToken } from './client';
 
 export interface Message {
   id: string;
@@ -45,13 +45,14 @@ export async function chat(data: ChatRequest): Promise<ChatResponse> {
 }
 
 export async function* chatStream(data: ChatRequest): AsyncGenerator<string, void, unknown> {
+  const token = getStoredToken();
   const response = await fetch(
     `${apiClient.defaults.baseURL}/agent/chat/stream`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: apiClient.defaults.headers.Authorization as string || '',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(data),
     }

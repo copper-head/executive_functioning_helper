@@ -44,16 +44,27 @@ The API will be available at `http://localhost:8000`. API docs at `http://localh
 
 ```bash
 # .env file
+# Database
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost/exec_func_helper
 # Or for SQLite: DATABASE_URL=sqlite+aiosqlite:///./app.db
 
+# Auth/JWT
 SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+
+# CORS (JSON list)
+CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
 
 # LLM Provider (choose one)
 LLM_PROVIDER=claude  # or: openai, ollama
 ANTHROPIC_API_KEY=your-key  # if using claude
 OPENAI_API_KEY=your-key     # if using openai
-OLLAMA_HOST=http://localhost:11434  # if using ollama
+OLLAMA_BASE_URL=http://localhost:11434  # if using ollama
+OLLAMA_MODEL=llama2
+
+# Desktop renderer (optional override)
+VITE_API_URL=http://localhost:8000/api
 ```
 
 ## Desktop Setup
@@ -64,8 +75,8 @@ cd desktop
 # Install dependencies
 npm install
 
-# Start development server
-npm run dev
+# Start Electron app with Vite dev server
+npm run electron:dev
 ```
 
 This opens the Electron app with hot-reload. The app expects the backend running at `http://localhost:8000`.

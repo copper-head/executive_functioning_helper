@@ -158,6 +158,7 @@ async def chat(
         conversation = result.scalar_one_or_none()
         if not conversation:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+        message_history = [Message(role=m.role.value, content=m.content) for m in conversation.messages]
     else:
         conversation = AgentConversation(
             user_id=current_user.id,
@@ -166,7 +167,7 @@ async def chat(
         db.add(conversation)
         await db.commit()
         await db.refresh(conversation)
-        conversation.messages = []
+        message_history = []
 
     # Add user message
     user_message = AgentMessage(
@@ -185,11 +186,7 @@ async def chat(
         system_prompt = f"{system_prompt}\n\n--- User Context ---\n{context}"
 
     # Build message history
-    messages = [
-        Message(role=m.role.value, content=m.content)
-        for m in conversation.messages
-    ]
-    messages.append(Message(role="user", content=chat_request.message))
+    messages = [*message_history, Message(role="user", content=chat_request.message)]
 
     # Get LLM response
     llm = get_llm_provider()
@@ -241,6 +238,7 @@ async def chat_stream(
         conversation = result.scalar_one_or_none()
         if not conversation:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+        message_history = [Message(role=m.role.value, content=m.content) for m in conversation.messages]
     else:
         conversation = AgentConversation(
             user_id=current_user.id,
@@ -249,7 +247,7 @@ async def chat_stream(
         db.add(conversation)
         await db.commit()
         await db.refresh(conversation)
-        conversation.messages = []
+        message_history = []
 
     # Add user message
     user_message = AgentMessage(
@@ -267,11 +265,7 @@ async def chat_stream(
         system_prompt = f"{system_prompt}\n\n--- User Context ---\n{context}"
 
     # Build message history
-    messages = [
-        Message(role=m.role.value, content=m.content)
-        for m in conversation.messages
-    ]
-    messages.append(Message(role="user", content=chat_request.message))
+    messages = [*message_history, Message(role="user", content=chat_request.message)]
 
     llm = get_llm_provider()
 

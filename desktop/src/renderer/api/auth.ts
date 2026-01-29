@@ -1,4 +1,4 @@
-import { apiClient, setStoredToken, setStoredRefreshToken, clearStoredTokens } from './client';
+import { apiClient, setStoredToken, clearStoredTokens } from './client';
 
 export interface User {
   id: string;
@@ -9,8 +9,7 @@ export interface User {
 
 export interface AuthResponse {
   access_token: string;
-  refresh_token: string;
-  user: User;
+  token_type: string;
 }
 
 export interface SignupRequest {
@@ -27,14 +26,12 @@ export interface LoginRequest {
 export async function signup(data: SignupRequest): Promise<AuthResponse> {
   const response = await apiClient.post<AuthResponse>('/auth/signup', data);
   setStoredToken(response.data.access_token);
-  setStoredRefreshToken(response.data.refresh_token);
   return response.data;
 }
 
 export async function login(data: LoginRequest): Promise<AuthResponse> {
   const response = await apiClient.post<AuthResponse>('/auth/login', data);
   setStoredToken(response.data.access_token);
-  setStoredRefreshToken(response.data.refresh_token);
   return response.data;
 }
 
