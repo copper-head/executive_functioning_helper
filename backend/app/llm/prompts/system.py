@@ -1,3 +1,23 @@
+"""
+System Prompts for Executive Functioning Assistant.
+
+This module defines the system prompts used to configure the AI assistant's
+behavior in different contexts. Each prompt tailors the assistant's personality
+and focus to the specific planning task at hand.
+
+Prompt Selection:
+    - No context: General executive assistant (EXECUTIVE_ASSISTANT_PROMPT)
+    - daily_planning: Focus on day-specific planning
+    - weekly_planning: Focus on week-level strategic planning
+    - goal_setting: Focus on clarifying and articulating goals
+
+All prompts emphasize:
+    - Reducing cognitive load rather than adding to it
+    - Actionable guidance over abstract advice
+    - Realistic workloads and flexibility
+    - Connection between daily actions and larger goals
+"""
+
 EXECUTIVE_ASSISTANT_PROMPT = """You are an executive functioning assistant designed to help users stay oriented, plan effectively, and take action. Your role is to:
 
 1. Help clarify goals and direction
@@ -62,6 +82,21 @@ Help users articulate what they really want to accomplish. Ask questions to clar
 
 
 def get_context_prompt(context_type: str | None) -> str:
+    """
+    Get the appropriate system prompt based on conversation context.
+
+    Selects the specialized prompt that best matches the user's current
+    planning activity. Falls back to the general executive assistant
+    prompt if no specific context is provided.
+
+    Args:
+        context_type: The type of planning context, or None for general.
+                     Valid values: 'daily_planning', 'weekly_planning',
+                     'goal_setting', or None.
+
+    Returns:
+        str: The system prompt to use for the AI assistant.
+    """
     if context_type == "daily_planning":
         return DAILY_PLANNING_PROMPT
     elif context_type == "weekly_planning":

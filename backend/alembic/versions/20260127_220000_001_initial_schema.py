@@ -1,10 +1,37 @@
-"""Initial schema with all models.
+"""
+Initial Schema Migration.
+
+This migration creates all database tables for the Executive Functioning Helper
+application. Tables are created in dependency order to satisfy foreign key
+constraints.
+
+Table Creation Order:
+    1. users - Base user accounts
+    2. goals - User objectives
+    3. weekly_plans - High-level weekly planning
+    4. daily_plans - Day-specific plans (references weekly_plans)
+    5. plan_items - Individual tasks (references daily_plans, goals)
+    6. agent_conversations - AI chat threads
+    7. agent_messages - Chat messages (references conversations)
+
+Indexes:
+    - All foreign key columns are indexed for efficient joins
+    - Email indexed for login lookups
+    - Date columns indexed for time-based queries
+
+Enum Types:
+    - timehorizon: short, medium, long
+    - goalstatus: active, completed, paused, cancelled
+    - planstatus: draft, active, completed
+    - itemstatus: todo, in_progress, done, skipped
+    - priority: low, medium, high, urgent
+    - messagerole: user, assistant, system
 
 Revision ID: 001
-Revises:
+Revises: None (initial migration)
 Create Date: 2026-01-27 22:00:00.000000+00:00
-
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -18,7 +45,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create users table
+    """Create all database tables and indexes."""
+
+    # Create users table - base entity for all user data
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -198,6 +227,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """
+    Drop all tables and enum types.
+
+    Tables are dropped in reverse dependency order to avoid
+    foreign key constraint violations.
+    """
     # Drop tables in reverse order of dependencies
     op.drop_index("ix_agent_messages_conversation_id", table_name="agent_messages")
     op.drop_table("agent_messages")

@@ -1,3 +1,26 @@
+"""
+AI Agent API Routes.
+
+This module provides endpoints for interacting with the AI assistant:
+
+Conversations:
+    - GET /conversations: List all conversations
+    - POST /conversations: Create a new conversation
+    - GET /conversations/{conv_id}: Get conversation with messages
+    - DELETE /conversations/{conv_id}: Delete a conversation
+
+Chat:
+    - POST /chat: Send a message and get a response
+    - POST /chat/stream: Send a message and stream the response
+
+The AI assistant helps users with executive functioning tasks like planning,
+goal setting, and staying oriented. Conversations can be contextual (linked
+to daily/weekly plans) to provide the AI with relevant information.
+
+The system supports multiple LLM providers (Claude, OpenAI, Ollama) which
+can be configured via environment variables.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +47,26 @@ async def build_context(
     context_type: str | None,
     context_id: int | None,
 ) -> str:
+    """
+    Build contextual information for the AI assistant.
+
+    Gathers relevant user data to include in the system prompt,
+    helping the AI provide personalized assistance. Always includes
+    active goals, and adds specific context based on conversation type.
+
+    Args:
+        db: Database session for querying user data.
+        user: The current user.
+        context_type: Type of context (e.g., 'daily_planning', 'weekly_planning').
+        context_id: ID of the related entity (e.g., daily_plan_id).
+
+    Returns:
+        str: Formatted context string to append to system prompt,
+             or empty string if no context is available.
+    """
     context_parts = []
 
-    # Always include active goals
+    # Always include active goals to help AI understand user priorities
     goals_result = await db.execute(
         select(Goal).where(Goal.user_id == user.id, Goal.status == "active")
     )
@@ -36,7 +76,7 @@ async def build_context(
         for g in goals:
             context_parts.append(f"- [{g.time_horizon.value}] {g.title}: {g.description or 'No description'}")
 
-    # Add specific context based on type
+    # Add specific context based on conversation type
     if context_type == "daily_planning" and context_id:
         result = await db.execute(
             select(DailyPlan)
@@ -70,6 +110,19 @@ async def list_conversations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    List all conversations for the current user.
+
+    Returns conversations ordered by creation date (newest first),
+    without including full message history.
+
+    Args:
+        current_user: The authenticated user.
+        db: Database session.
+
+    Returns:
+        list[ConversationListItem]: Summary list of conversations.
+    """
     result = await db.execute(
         select(AgentConversation)
         .where(AgentConversation.user_id == current_user.id)
@@ -84,6 +137,20 @@ async def create_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Create a new conversation.
+
+    Conversations can optionally have a context type and ID to link
+    them to specific planning entities (daily plan, weekly plan, etc.).
+
+    Args:
+        conv_in: Conversation data (title, context_type, context_id).
+        current_user: The authenticated user.
+        db: Database session.
+
+    Returns:
+        ConversationResponse: The newly created conversation.
+    """
     conversation = AgentConversation(
         user_id=current_user.id,
         title=conv_in.title,
@@ -93,6 +160,7 @@ async def create_conversation(
     db.add(conversation)
     await db.commit()
 
+    # Re-fetch with messages relationship loaded
     result = await db.execute(
         select(AgentConversation)
         .where(AgentConversation.id == conversation.id)
@@ -107,6 +175,20 @@ async def get_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Get a conversation with its full message history.
+
+    Args:
+        conv_id: The conversation's unique identifier.
+        current_user: The authenticated user.
+        db: Database session.
+
+    Returns:
+        ConversationResponse: The conversation with all messages.
+
+    Raises:
+        HTTPException: 404 if conversation not found or doesn't belong to user.
+    """
     result = await db.execute(
         select(AgentConversation)
         .where(AgentConversation.id == conv_id, AgentConversation.user_id == current_user.id)
@@ -126,6 +208,19 @@ async def delete_conversation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Delete a conversation and all its messages.
+
+    Messages are cascade deleted along with the conversation.
+
+    Args:
+        conv_id: The conversation's unique identifier.
+        current_user: The authenticated user.
+        db: Database session.
+
+    Raises:
+        HTTPException: 404 if conversation not found or doesn't belong to user.
+    """
     result = await db.execute(
         select(AgentConversation)
         .where(AgentConversation.id == conv_id, AgentConversation.user_id == current_user.id)
@@ -145,8 +240,30 @@ async def chat(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Send a message to the AI assistant and get a response.
+
+    If conversation_id is provided, continues an existing conversation.
+    Otherwise, creates a new conversation with an auto-generated title.
+    Both the user message and AI response are saved to the database.
+
+    The AI receives contextual information based on the conversation's
+    context_type (e.g., active goals, current daily plan).
+
+    Args:
+        chat_request: Message content and optional conversation_id.
+        current_user: The authenticated user.
+        db: Database session.
+
+    Returns:
+        AgentChatResponse: The conversation ID, user message, and AI response.
+
+    Raises:
+        HTTPException: 404 if specified conversation_id not found.
+    """
     # Get or create conversation
     if chat_request.conversation_id:
+        # Continue existing conversation
         result = await db.execute(
             select(AgentConversation)
             .where(
@@ -158,8 +275,10 @@ async def chat(
         conversation = result.scalar_one_or_none()
         if not conversation:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+        # Convert existing messages to LLM format
         message_history = [Message(role=m.role.value, content=m.content) for m in conversation.messages]
     else:
+        # Create new conversation with auto-generated title from first message
         conversation = AgentConversation(
             user_id=current_user.id,
             title=chat_request.message[:50] + "..." if len(chat_request.message) > 50 else chat_request.message,
@@ -169,7 +288,7 @@ async def chat(
         await db.refresh(conversation)
         message_history = []
 
-    # Add user message
+    # Persist user message to database
     user_message = AgentMessage(
         conversation_id=conversation.id,
         role=MessageRole.USER,
@@ -179,20 +298,20 @@ async def chat(
     await db.commit()
     await db.refresh(user_message)
 
-    # Build context and system prompt
+    # Build context and system prompt based on conversation type
     context = await build_context(db, current_user, conversation.context_type, conversation.context_id)
     system_prompt = get_context_prompt(conversation.context_type)
     if context:
         system_prompt = f"{system_prompt}\n\n--- User Context ---\n{context}"
 
-    # Build message history
+    # Prepare message history for LLM
     messages = [*message_history, Message(role="user", content=chat_request.message)]
 
-    # Get LLM response
+    # Call LLM provider for response
     llm = get_llm_provider()
     response = await llm.chat(messages, system_prompt=system_prompt)
 
-    # Save assistant message
+    # Persist assistant response to database
     assistant_message = AgentMessage(
         conversation_id=conversation.id,
         role=MessageRole.ASSISTANT,
@@ -225,7 +344,27 @@ async def chat_stream(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Get or create conversation
+    """
+    Send a message to the AI assistant and stream the response.
+
+    Similar to the /chat endpoint but returns a Server-Sent Events (SSE)
+    stream for real-time response display. Each chunk is sent as a
+    "data: <content>" event. The stream ends with "data: [DONE]".
+
+    The complete response is saved to the database after streaming finishes.
+
+    Args:
+        chat_request: Message content and optional conversation_id.
+        current_user: The authenticated user.
+        db: Database session.
+
+    Returns:
+        StreamingResponse: SSE stream of response chunks.
+
+    Raises:
+        HTTPException: 404 if specified conversation_id not found.
+    """
+    # Get or create conversation (same logic as non-streaming endpoint)
     if chat_request.conversation_id:
         result = await db.execute(
             select(AgentConversation)
@@ -249,7 +388,7 @@ async def chat_stream(
         await db.refresh(conversation)
         message_history = []
 
-    # Add user message
+    # Persist user message immediately
     user_message = AgentMessage(
         conversation_id=conversation.id,
         role=MessageRole.USER,
@@ -264,18 +403,23 @@ async def chat_stream(
     if context:
         system_prompt = f"{system_prompt}\n\n--- User Context ---\n{context}"
 
-    # Build message history
+    # Prepare message history for LLM
     messages = [*message_history, Message(role="user", content=chat_request.message)]
 
     llm = get_llm_provider()
 
     async def generate():
+        """
+        Generator that streams LLM response chunks as SSE events.
+
+        Accumulates the full response to save to database after streaming.
+        """
         full_response = []
         async for chunk in llm.chat_stream(messages, system_prompt=system_prompt):
             full_response.append(chunk)
             yield f"data: {chunk}\n\n"
 
-        # Save the complete response
+        # Save the complete response after streaming finishes
         content = "".join(full_response)
         assistant_message = AgentMessage(
             conversation_id=conversation.id,
@@ -285,6 +429,7 @@ async def chat_stream(
         db.add(assistant_message)
         await db.commit()
 
+        # Signal end of stream
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
