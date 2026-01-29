@@ -9,6 +9,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from dotenv import load_dotenv
+
 from app.db.models import Base
 
 # this is the Alembic Config object, which provides
@@ -19,6 +21,9 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Load environment variables from .env
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # add your model's MetaData object here
 # for 'autogenerate' support
