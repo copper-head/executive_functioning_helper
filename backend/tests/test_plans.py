@@ -512,3 +512,38 @@ class TestPlanEdgeCases:
         )
         assert response.status_code == 201
         assert response.json()["focus_areas"] == long_focus
+
+
+class TestPlanNotFoundErrors:
+    """Tests for not found error handling in plan endpoints."""
+
+    async def test_get_daily_plan_not_found(self, authenticated_client: AsyncClient):
+        """Test getting non-existent daily plan."""
+        response = await authenticated_client.get("/api/plans/daily/99999")
+        assert response.status_code == 404
+
+    async def test_update_daily_plan_not_found(self, authenticated_client: AsyncClient):
+        """Test updating non-existent daily plan."""
+        response = await authenticated_client.patch(
+            "/api/plans/daily/99999",
+            json={"summary": "Should fail"},
+        )
+        assert response.status_code == 404
+
+    async def test_delete_daily_plan_not_found(self, authenticated_client: AsyncClient):
+        """Test deleting non-existent daily plan."""
+        response = await authenticated_client.delete("/api/plans/daily/99999")
+        assert response.status_code == 404
+
+    async def test_update_weekly_plan_not_found(self, authenticated_client: AsyncClient):
+        """Test updating non-existent weekly plan."""
+        response = await authenticated_client.patch(
+            "/api/plans/weekly/99999",
+            json={"summary": "Should fail"},
+        )
+        assert response.status_code == 404
+
+    async def test_delete_weekly_plan_not_found(self, authenticated_client: AsyncClient):
+        """Test deleting non-existent weekly plan."""
+        response = await authenticated_client.delete("/api/plans/weekly/99999")
+        assert response.status_code == 404

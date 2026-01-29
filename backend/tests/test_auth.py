@@ -44,6 +44,37 @@ class TestSecurityFunctions:
         assert result is None
 
 
+class TestTokenAuthentication:
+    """Tests for token-based authentication edge cases."""
+
+    async def test_token_for_deleted_user(self, client: AsyncClient, db_session):
+        """Test that token for non-existent user fails."""
+        # Create a valid token for a user ID that doesn't exist
+        token = create_access_token(subject="99999")
+        response = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "User not found"
+
+    async def test_malformed_bearer_token(self, client: AsyncClient):
+        """Test that malformed bearer token fails."""
+        response = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": "Bearer"},
+        )
+        assert response.status_code in [401, 422]
+
+    async def test_missing_bearer_prefix(self, client: AsyncClient):
+        """Test that missing Bearer prefix fails."""
+        response = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": "some-token"},
+        )
+        assert response.status_code in [401, 403]
+
+
 class TestSignup:
     async def test_signup_success(self, client: AsyncClient):
         """Test successful user registration."""
