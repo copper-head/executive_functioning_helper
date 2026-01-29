@@ -1,17 +1,40 @@
+/**
+ * @fileoverview Plan Item Component
+ *
+ * Displays a single plan item with inline editing, status cycling,
+ * notes, and delete functionality. Used in both daily and weekly plans.
+ *
+ * @module components/PlanItem
+ */
+
 import { useState, useRef, useEffect } from 'react';
 import { GripVertical, Circle, Clock, CheckCircle2, X, Target, Trash2 } from 'lucide-react';
 import type { PlanItem as PlanItemType, ItemStatus } from '../api/plans';
 
+/**
+ * Props for the PlanItem component.
+ */
 interface PlanItemProps {
+  /** The plan item data to display */
   item: PlanItemType;
+  /** Optional title of the linked goal to display */
   goalTitle?: string;
+  /** Callback when status changes */
   onStatusChange: (id: number, status: ItemStatus) => void;
+  /** Callback when title changes */
   onTitleChange: (id: number, title: string) => void;
+  /** Callback when notes change */
   onNotesChange: (id: number, notes: string) => void;
+  /** Callback when item is deleted */
   onDelete: (id: number) => void;
+  /** Props for drag handle (for drag-and-drop reordering) */
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
+/**
+ * Visual configuration for each status type.
+ * Defines the icon component and colors for status button.
+ */
 const statusConfig: Record<ItemStatus, { icon: React.ElementType; color: string; bgColor: string }> = {
   todo: { icon: Circle, color: 'text-gray-400', bgColor: 'hover:bg-gray-100' },
   in_progress: { icon: Clock, color: 'text-blue-500', bgColor: 'hover:bg-blue-50' },
@@ -19,8 +42,25 @@ const statusConfig: Record<ItemStatus, { icon: React.ElementType; color: string;
   skipped: { icon: X, color: 'text-gray-400', bgColor: 'hover:bg-gray-100' },
 };
 
+/**
+ * Order for status cycling when user clicks the status button.
+ * Cycles through: todo -> in_progress -> done -> todo
+ */
 const statusOrder: ItemStatus[] = ['todo', 'in_progress', 'done'];
 
+/**
+ * Individual plan item with inline editing and status management.
+ *
+ * Features:
+ * - Click status icon to cycle through todo -> in_progress -> done
+ * - Click title to edit inline (Enter to save, Escape to cancel)
+ * - Expandable notes section
+ * - Drag handle for reordering (when drag props provided)
+ * - Delete button appears on hover
+ * - Visual dimming when item is completed
+ *
+ * @param props - Component props
+ */
 export function PlanItem({
   item,
   goalTitle,
@@ -30,12 +70,14 @@ export function PlanItem({
   onDelete,
   dragHandleProps,
 }: PlanItemProps) {
+  // Editing state
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(item.title);
   const [editNotes, setEditNotes] = useState(item.notes || '');
   const [showNotes, setShowNotes] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-focus and select title input when entering edit mode
   useEffect(() => {
     if (isEditing && titleInputRef.current) {
       titleInputRef.current.focus();
@@ -43,12 +85,19 @@ export function PlanItem({
     }
   }, [isEditing]);
 
+  /**
+   * Cycles status to the next value in the sequence.
+   * Wraps around from done back to todo.
+   */
   const cycleStatus = () => {
     const currentIndex = statusOrder.indexOf(item.status);
     const nextIndex = (currentIndex + 1) % statusOrder.length;
     onStatusChange(item.id, statusOrder[nextIndex]);
   };
 
+  /**
+   * Saves title changes on blur (if changed) or reverts if empty.
+   */
   const handleTitleBlur = () => {
     if (editTitle.trim() && editTitle !== item.title) {
       onTitleChange(item.id, editTitle.trim());
@@ -58,6 +107,10 @@ export function PlanItem({
     setIsEditing(false);
   };
 
+  /**
+   * Handles keyboard shortcuts in title edit mode.
+   * Enter: save changes, Escape: cancel editing
+   */
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleTitleBlur();
@@ -67,6 +120,9 @@ export function PlanItem({
     }
   };
 
+  /**
+   * Saves notes changes on blur (if changed).
+   */
   const handleNotesBlur = () => {
     if (editNotes !== (item.notes || '')) {
       onNotesChange(item.id, editNotes);

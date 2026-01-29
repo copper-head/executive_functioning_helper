@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Daily Planning Page Component
+ *
+ * Daily task management with date navigation, item CRUD operations,
+ * and progress tracking. Items are grouped by status (In Progress, To Do, Done).
+ *
+ * @module pages/DailyPlanning
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import { DatePicker } from '../components/DatePicker';
@@ -13,19 +22,44 @@ import {
 } from '../api/plans';
 import { getGoals, type Goal } from '../api/goals';
 
+/**
+ * Formats a Date object to ISO date string (YYYY-MM-DD) for API calls.
+ */
 function formatDateForApi(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
+/**
+ * Daily planning page with task management and progress tracking.
+ *
+ * Features:
+ * - Date navigation (previous/next day, jump to today)
+ * - Add new plan items
+ * - Edit item title, notes, and status inline
+ * - Delete items
+ * - Items grouped by status: In Progress, To Do, Done
+ * - Progress bar showing completion rate
+ * - Auto-creates plan for new dates
+ * - Optimistic UI updates with rollback on error
+ *
+ * Route: /daily
+ */
 export function DailyPlanning() {
+  // Date and plan state
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+
+  // UI state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newItemTitle, setNewItemTitle] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
 
+  /**
+   * Loads the daily plan for a given date.
+   * Creates a new plan if one doesn't exist for that date.
+   */
   const loadPlan = useCallback(async (date: Date) => {
     setIsLoading(true);
     setError(null);
@@ -35,6 +69,7 @@ export function DailyPlanning() {
       const dailyPlan = await getDailyPlanByDate(dateStr);
       setPlan(dailyPlan);
     } catch (err) {
+      // If plan doesn't exist (404), create one
       if ((err as { response?: { status: number } }).response?.status === 404) {
         try {
           const newPlan = await createDailyPlan(dateStr);
@@ -52,30 +87,40 @@ export function DailyPlanning() {
     }
   }, []);
 
+  /**
+   * Loads goals for displaying linked goal titles on items.
+   */
   const loadGoals = useCallback(async () => {
     try {
       const goalsData = await getGoals();
       setGoals(goalsData);
     } catch {
-      // Goals are optional, don't show error
+      // Goals are optional for display - don't show error
     }
   }, []);
 
+  // Load plan and goals when date changes
   useEffect(() => {
     loadPlan(selectedDate);
     loadGoals();
   }, [selectedDate, loadPlan, loadGoals]);
 
+  /** Handles date selection from DatePicker */
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
   };
 
+  /**
+   * Adds a new item to the current plan.
+   * New items are added at the end of the list.
+   */
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemTitle.trim() || !plan) return;
 
     setIsAddingItem(true);
     try {
+      // Calculate order for new item (after all existing items)
       const maxOrder = plan.items.reduce((max, item) => Math.max(max, item.order), -1);
       const newItem = await addDailyPlanItem(plan.id.toString(), {
         title: newItemTitle.trim(),
@@ -93,9 +138,14 @@ export function DailyPlanning() {
     }
   };
 
+  /**
+   * Updates item status with optimistic UI.
+   * Reverts on error.
+   */
   const handleStatusChange = async (itemId: number, status: ItemStatus) => {
     if (!plan) return;
 
+    // Optimistic update
     const originalItems = plan.items;
     setPlan({
       ...plan,
@@ -107,11 +157,16 @@ export function DailyPlanning() {
     try {
       await updatePlanItem(itemId.toString(), { status });
     } catch {
+      // Rollback on error
       setPlan({ ...plan, items: originalItems });
       setError('Failed to update status');
     }
   };
 
+  /**
+   * Updates item title with optimistic UI.
+   * Reverts on error.
+   */
   const handleTitleChange = async (itemId: number, title: string) => {
     if (!plan) return;
 
@@ -131,6 +186,10 @@ export function DailyPlanning() {
     }
   };
 
+  /**
+   * Updates item notes with optimistic UI.
+   * Reverts on error.
+   */
   const handleNotesChange = async (itemId: number, notes: string) => {
     if (!plan) return;
 
@@ -150,6 +209,10 @@ export function DailyPlanning() {
     }
   };
 
+  /**
+   * Deletes an item with optimistic UI.
+   * Reverts on error.
+   */
   const handleDeleteItem = async (itemId: number) => {
     if (!plan) return;
 
@@ -167,20 +230,26 @@ export function DailyPlanning() {
     }
   };
 
+  /**
+   * Finds the title of a goal by ID for display on linked items.
+   */
   const getGoalTitle = (goalId: number | undefined): string | undefined => {
     if (!goalId) return undefined;
     const goal = goals.find((g) => String(g.id) === String(goalId));
     return goal?.title;
   };
 
+  // Sort items by order for consistent display
   const sortedItems = plan?.items
     ? [...plan.items].sort((a, b) => a.order - b.order)
     : [];
 
+  // Group items by status
   const todoItems = sortedItems.filter((item) => item.status === 'todo');
   const inProgressItems = sortedItems.filter((item) => item.status === 'in_progress');
   const doneItems = sortedItems.filter((item) => item.status === 'done');
 
+  // Calculate completion percentage for progress bar
   const completionRate = sortedItems.length > 0
     ? Math.round((doneItems.length / sortedItems.length) * 100)
     : 0;

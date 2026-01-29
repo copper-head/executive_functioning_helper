@@ -1,8 +1,31 @@
+/**
+ * @fileoverview Login Page Component
+ *
+ * Authentication page for existing users to log in with email/password.
+ * Supports redirect to originally requested page after successful login.
+ *
+ * @module pages/Login
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
+/**
+ * Login page with email/password form.
+ *
+ * Features:
+ * - Email and password input fields
+ * - Form validation (both fields required)
+ * - Loading state during authentication
+ * - Error display for failed login
+ * - Redirect to original destination after login
+ * - Link to signup page
+ *
+ * Route: /login
+ */
 export default function Login() {
+  // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -12,12 +35,17 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Get the page user was trying to access (for post-login redirect)
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
+  /**
+   * Handles form submission with validation and auth.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    // Basic validation
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
@@ -26,6 +54,7 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       await login({ email, password });
+      // Redirect to original destination or dashboard
       navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof Error) {

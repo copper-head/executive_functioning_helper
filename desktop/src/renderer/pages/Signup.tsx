@@ -1,8 +1,34 @@
+/**
+ * @fileoverview Signup Page Component
+ *
+ * Registration page for new users to create an account.
+ * Validates input and creates account, then redirects to dashboard.
+ *
+ * @module pages/Signup
+ */
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
+/**
+ * Signup page with registration form.
+ *
+ * Features:
+ * - Name, email, password, and confirm password fields
+ * - Client-side validation:
+ *   - All fields required
+ *   - Passwords must match
+ *   - Password minimum 8 characters
+ * - Loading state during account creation
+ * - Error display for validation/server errors
+ * - Redirect to dashboard on success
+ * - Link to login page
+ *
+ * Route: /signup
+ */
 export default function Signup() {
+  // Form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,20 +39,26 @@ export default function Signup() {
   const signup = useAuthStore((state) => state.signup);
   const navigate = useNavigate();
 
+  /**
+   * Handles form submission with validation and account creation.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    // Validate all fields are filled
     if (!name || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
     }
 
+    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
+    // Validate password length
     if (password.length < 8) {
       setError('Password must be at least 8 characters');
       return;
@@ -35,6 +67,7 @@ export default function Signup() {
     setIsSubmitting(true);
     try {
       await signup({ name, email, password });
+      // Redirect to dashboard on success
       navigate('/', { replace: true });
     } catch (err) {
       if (err instanceof Error) {

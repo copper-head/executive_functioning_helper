@@ -1,13 +1,32 @@
+/**
+ * @fileoverview Goals Page Component
+ *
+ * Goal management page with CRUD operations, filtering, and
+ * grid/list view toggle. Displays goals as cards with progress indicators.
+ *
+ * @module pages/Goals
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Filter, LayoutGrid, List } from 'lucide-react';
 import { Goal, getGoals, createGoal, updateGoal, deleteGoal, CreateGoalRequest, UpdateGoalRequest } from '../api/goals';
 import { GoalCard } from '../components/GoalCard';
 import { GoalModal } from '../components/GoalModal';
 
+/** Filter options for time horizon */
 type TimeHorizon = 'all' | 'short' | 'medium' | 'long';
+
+/** Filter options for goal status */
 type StatusFilter = 'all' | 'active' | 'completed' | 'archived';
+
+/** Display mode for goal cards */
 type ViewMode = 'grid' | 'list';
 
+/**
+ * Determines time horizon based on days until target date.
+ * @param targetDate - ISO date string
+ * @returns Time horizon category or null if no date
+ */
 function getTimeHorizon(targetDate?: string): 'short' | 'medium' | 'long' | null {
   if (!targetDate) return null;
   const target = new Date(targetDate);
@@ -18,17 +37,41 @@ function getTimeHorizon(targetDate?: string): 'short' | 'medium' | 'long' | null
   return 'long';
 }
 
+/**
+ * Goals management page with full CRUD functionality.
+ *
+ * Features:
+ * - Display goals in grid or list view
+ * - Filter by time horizon (short/medium/long term)
+ * - Filter by status (active/completed/archived)
+ * - Create new goals via modal
+ * - Edit existing goals via modal
+ * - Delete with confirmation overlay
+ * - Empty state with create prompt
+ *
+ * Route: /goals
+ */
 export default function Goals() {
+  // Data state
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Filter state
   const [horizonFilter, setHorizonFilter] = useState<TimeHorizon>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>();
+
+  // Delete confirmation state (stores goal ID pending deletion)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+  /**
+   * Fetches all goals from the API.
+   */
   const fetchGoals = useCallback(async () => {
     try {
       const data = await getGoals();
@@ -42,14 +85,20 @@ export default function Goals() {
     }
   }, []);
 
+  // Fetch goals on mount
   useEffect(() => {
     fetchGoals();
   }, [fetchGoals]);
 
+  /**
+   * Applies time horizon and status filters to goals list.
+   */
   const filteredGoals = goals.filter((goal) => {
+    // Filter by status
     if (statusFilter !== 'all' && goal.status !== statusFilter) {
       return false;
     }
+    // Filter by time horizon
     if (horizonFilter !== 'all') {
       const horizon = getTimeHorizon(goal.target_date);
       if (horizon !== horizonFilter) {
@@ -59,16 +108,19 @@ export default function Goals() {
     return true;
   });
 
+  /** Opens modal for creating a new goal */
   const handleCreate = () => {
     setEditingGoal(undefined);
     setIsModalOpen(true);
   };
 
+  /** Opens modal for editing an existing goal */
   const handleEdit = (goal: Goal) => {
     setEditingGoal(goal);
     setIsModalOpen(true);
   };
 
+  /** Saves goal (create or update) and refreshes list */
   const handleSave = async (data: CreateGoalRequest | UpdateGoalRequest) => {
     if (editingGoal) {
       await updateGoal(editingGoal.id, data);
@@ -78,13 +130,21 @@ export default function Goals() {
     await fetchGoals();
   };
 
+  /**
+   * Handles delete with confirmation.
+   * First click sets confirmation state, second click performs delete.
+   * Confirmation auto-clears after 3 seconds.
+   */
   const handleDelete = async (id: string) => {
     if (deleteConfirm === id) {
+      // Second click - perform delete
       await deleteGoal(id);
       setDeleteConfirm(null);
       await fetchGoals();
     } else {
+      // First click - show confirmation
       setDeleteConfirm(id);
+      // Auto-clear confirmation after 3 seconds
       setTimeout(() => setDeleteConfirm(null), 3000);
     }
   };

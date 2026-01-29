@@ -1,23 +1,58 @@
+/**
+ * @fileoverview Chat Message Input Component
+ *
+ * Auto-expanding textarea with submit button for sending chat messages.
+ * Supports keyboard shortcuts (Enter to send, Shift+Enter for newline).
+ *
+ * @module components/MessageInput
+ */
+
 import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 
+/**
+ * Props for the MessageInput component.
+ */
 interface MessageInputProps {
+  /** Callback when a message is submitted */
   onSend: (message: string) => void;
+  /** If true, input is disabled (e.g., while sending) */
   disabled?: boolean;
+  /** Placeholder text when input is empty */
   placeholder?: string;
 }
 
+/**
+ * Chat input with auto-expanding textarea.
+ *
+ * Features:
+ * - Auto-expands vertically as user types (up to 200px max height)
+ * - Enter key sends message, Shift+Enter adds newline
+ * - Clears input after successful send
+ * - Disabled state prevents input during message processing
+ *
+ * @param props - Component props
+ * @param props.onSend - Called with trimmed message when submitted
+ * @param props.disabled - Whether input should be disabled
+ * @param props.placeholder - Placeholder text (default: "Type a message...")
+ */
 export function MessageInput({ onSend, disabled, placeholder = 'Type a message...' }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Auto-resize textarea based on content
   useEffect(() => {
     if (textareaRef.current) {
+      // Reset height to auto to get accurate scrollHeight
       textareaRef.current.style.height = 'auto';
+      // Set to scrollHeight but cap at 200px max
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [message]);
 
+  /**
+   * Handles form submission - sends message and clears input.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
@@ -26,6 +61,9 @@ export function MessageInput({ onSend, disabled, placeholder = 'Type a message..
     }
   };
 
+  /**
+   * Handles Enter key to submit (Shift+Enter for newline).
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();

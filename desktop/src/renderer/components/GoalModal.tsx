@@ -1,33 +1,74 @@
+/**
+ * @fileoverview Goal Create/Edit Modal Component
+ *
+ * Modal dialog for creating new goals or editing existing ones.
+ * Handles form state, validation, and submission with loading states.
+ *
+ * @module components/GoalModal
+ */
+
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Goal, CreateGoalRequest, UpdateGoalRequest } from '../api/goals';
 
+/**
+ * Props for the GoalModal component.
+ */
 interface GoalModalProps {
+  /** Existing goal to edit (undefined for creating new goal) */
   goal?: Goal;
+  /** Whether the modal is visible */
   isOpen: boolean;
+  /** Callback to close the modal */
   onClose: () => void;
+  /** Callback to save the goal (create or update) */
   onSave: (data: CreateGoalRequest | UpdateGoalRequest) => Promise<void>;
 }
 
+/**
+ * Modal dialog for goal creation and editing.
+ *
+ * Features:
+ * - Adapts UI for create vs edit mode
+ * - Form validation (title required)
+ * - Loading state during save
+ * - Error display
+ * - Resets form state when goal changes
+ * - Status field only shown in edit mode
+ *
+ * @param props - Component props
+ * @param props.goal - Goal to edit, or undefined for new goal
+ * @param props.isOpen - Controls modal visibility
+ * @param props.onClose - Called when modal should close
+ * @param props.onSave - Called with form data on submit
+ */
 export function GoalModal({ goal, isOpen, onClose, onSave }: GoalModalProps) {
+  // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [status, setStatus] = useState<Goal['status']>('active');
   const [priority, setPriority] = useState(3);
+
+  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Determine mode: editing existing goal vs creating new
   const isEditing = !!goal;
 
+  // Reset form when goal changes or modal opens
   useEffect(() => {
     if (goal) {
+      // Populate form with existing goal data
       setTitle(goal.title);
       setDescription(goal.description || '');
+      // Extract date portion from ISO string for date input
       setTargetDate(goal.target_date ? goal.target_date.split('T')[0] : '');
       setStatus(goal.status);
       setPriority(goal.priority);
     } else {
+      // Reset to defaults for new goal
       setTitle('');
       setDescription('');
       setTargetDate('');
@@ -37,10 +78,14 @@ export function GoalModal({ goal, isOpen, onClose, onSave }: GoalModalProps) {
     setError('');
   }, [goal, isOpen]);
 
+  /**
+   * Handles form submission with validation.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    // Validate required fields
     if (!title.trim()) {
       setError('Title is required');
       return;
@@ -48,6 +93,7 @@ export function GoalModal({ goal, isOpen, onClose, onSave }: GoalModalProps) {
 
     setIsSubmitting(true);
     try {
+      // Build request payload, conditionally including status for edits
       const data: CreateGoalRequest | UpdateGoalRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
@@ -68,6 +114,7 @@ export function GoalModal({ goal, isOpen, onClose, onSave }: GoalModalProps) {
     }
   };
 
+  // Don't render anything if modal is closed
   if (!isOpen) return null;
 
   return (

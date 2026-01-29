@@ -1,15 +1,36 @@
+/**
+ * @fileoverview Conversation List Sidebar Component
+ *
+ * Displays a list of chat conversations with selection, deletion,
+ * and new conversation creation. Used in the Chat page sidebar.
+ *
+ * @module components/ConversationList
+ */
+
 import { Plus, Trash2, MessageSquare } from 'lucide-react';
 import { Conversation } from '../api/agent';
 
+/**
+ * Props for the ConversationList component.
+ */
 interface ConversationListProps {
+  /** Array of conversations to display */
   conversations: Conversation[];
+  /** ID of the currently selected conversation */
   currentConversationId?: string;
+  /** Whether conversations are being loaded */
   isLoading?: boolean;
+  /** Callback when a conversation is selected */
   onSelect: (id: string) => void;
+  /** Callback when a conversation is deleted */
   onDelete: (id: string) => void;
+  /** Callback to start a new conversation */
   onNewConversation: () => void;
 }
 
+/**
+ * Individual conversation list item with hover-reveal delete button.
+ */
 function ConversationItem({
   conversation,
   isActive,
@@ -21,6 +42,9 @@ function ConversationItem({
   onSelect: () => void;
   onDelete: () => void;
 }) {
+  /**
+   * Handles delete click, preventing event from bubbling to parent select handler.
+   */
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete();
@@ -37,6 +61,7 @@ function ConversationItem({
     >
       <MessageSquare size={16} className="shrink-0" />
       <span className="flex-1 truncate">{conversation.title}</span>
+      {/* Delete button appears on hover */}
       <button
         onClick={handleDelete}
         className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-200 transition-opacity"
@@ -48,6 +73,18 @@ function ConversationItem({
   );
 }
 
+/**
+ * Sidebar panel showing conversation history with management controls.
+ *
+ * Features:
+ * - "New Chat" button at top to start fresh conversation
+ * - Scrollable list of past conversations
+ * - Active conversation highlighting
+ * - Hover-reveal delete button on each conversation
+ * - Loading and empty states
+ *
+ * @param props - Component props
+ */
 export function ConversationList({
   conversations,
   currentConversationId,
@@ -58,6 +95,7 @@ export function ConversationList({
 }: ConversationListProps) {
   return (
     <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
+      {/* New Chat button */}
       <div className="p-3 border-b border-gray-200">
         <button
           onClick={onNewConversation}
@@ -67,6 +105,8 @@ export function ConversationList({
           New Chat
         </button>
       </div>
+
+      {/* Conversation list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {isLoading ? (
           <div className="text-center py-4 text-sm text-gray-500">
