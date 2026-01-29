@@ -2,6 +2,8 @@
 
 A desktop app to help with executive functioning: goal setting, daily/weekly planning, and AI-assisted task management.
 
+This app is being built primarily with gastown - if you're interested check out this repository: [gastown](https://github.com/steveyegge/gastown)
+
 ## Tech Stack
 
 - **Backend**: FastAPI + PostgreSQL + SQLAlchemy
