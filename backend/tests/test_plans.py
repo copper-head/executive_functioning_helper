@@ -309,3 +309,206 @@ class TestPlanItems:
         """Test deleting non-existent plan item."""
         response = await authenticated_client.delete("/api/plans/items/99999")
         assert response.status_code == 404
+
+
+class TestDateBoundaryConditions:
+    """Tests for date boundary conditions in plans."""
+
+    async def test_create_daily_plan_future_date(
+        self, authenticated_client: AsyncClient, test_weekly_plan
+    ):
+        """Test creating a daily plan for a future date."""
+        future_date = date.today() + timedelta(days=30)
+        response = await authenticated_client.post(
+            "/api/plans/daily",
+            json={
+                "date": str(future_date),
+                "weekly_plan_id": test_weekly_plan.id,
+                "summary": "Future plan",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["date"] == str(future_date)
+
+    async def test_create_daily_plan_past_date(
+        self, authenticated_client: AsyncClient, test_weekly_plan
+    ):
+        """Test creating a daily plan for a past date."""
+        past_date = date.today() - timedelta(days=30)
+        response = await authenticated_client.post(
+            "/api/plans/daily",
+            json={
+                "date": str(past_date),
+                "weekly_plan_id": test_weekly_plan.id,
+                "summary": "Past plan",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["date"] == str(past_date)
+
+    async def test_list_daily_plans_date_range(
+        self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user, test_weekly_plan
+    ):
+        """Test listing daily plans with date range filter."""
+        # Create plans for multiple dates
+        today = date.today()
+        for i in range(5):
+            plan_date = today + timedelta(days=i)
+            plan = DailyPlan(
+                user_id=test_user.id,
+                date=plan_date,
+                weekly_plan_id=test_weekly_plan.id,
+                summary=f"Plan for day {i}",
+            )
+            db_session.add(plan)
+        await db_session.commit()
+
+        # Query for a subset
+        start = today + timedelta(days=1)
+        end = today + timedelta(days=3)
+        response = await authenticated_client.get(
+            f"/api/plans/daily?start_date={start}&end_date={end}"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3
+
+    async def test_weekly_plan_date_validation(self, authenticated_client: AsyncClient):
+        """Test creating weekly plans with various date formats."""
+        # Valid date
+        response = await authenticated_client.post(
+            "/api/plans/weekly",
+            json={
+                "week_start_date": "2026-06-15",
+                "summary": "Mid-year plan",
+            },
+        )
+        assert response.status_code == 201
+
+    async def test_create_multiple_plans_same_date(
+        self, authenticated_client: AsyncClient, test_weekly_plan
+    ):
+        """Test that multiple daily plans can exist for different purposes."""
+        target_date = date.today() + timedelta(days=50)
+
+        # Create first plan
+        response1 = await authenticated_client.post(
+            "/api/plans/daily",
+            json={
+                "date": str(target_date),
+                "weekly_plan_id": test_weekly_plan.id,
+                "summary": "First plan",
+            },
+        )
+        assert response1.status_code == 201
+
+        # Create second plan for same date
+        response2 = await authenticated_client.post(
+            "/api/plans/daily",
+            json={
+                "date": str(target_date),
+                "weekly_plan_id": test_weekly_plan.id,
+                "summary": "Second plan",
+            },
+        )
+        assert response2.status_code == 201
+
+
+class TestPlanStatusTransitions:
+    """Tests for plan status transitions."""
+
+    async def test_weekly_plan_status_transitions(
+        self, authenticated_client: AsyncClient, test_weekly_plan
+    ):
+        """Test all valid status transitions for weekly plans."""
+        statuses = ["draft", "active", "completed"]
+        for status in statuses:
+            response = await authenticated_client.patch(
+                f"/api/plans/weekly/{test_weekly_plan.id}",
+                json={"status": status},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == status
+
+    async def test_daily_plan_status_transitions(
+        self, authenticated_client: AsyncClient, test_daily_plan
+    ):
+        """Test all valid status transitions for daily plans."""
+        statuses = ["draft", "active", "completed"]
+        for status in statuses:
+            response = await authenticated_client.patch(
+                f"/api/plans/daily/{test_daily_plan.id}",
+                json={"status": status},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == status
+
+    async def test_plan_item_status_transitions(
+        self, authenticated_client: AsyncClient, test_plan_item
+    ):
+        """Test all valid status transitions for plan items."""
+        statuses = ["todo", "in_progress", "done", "skipped"]
+        for status in statuses:
+            response = await authenticated_client.patch(
+                f"/api/plans/items/{test_plan_item.id}",
+                json={"status": status},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == status
+
+
+class TestPlanEdgeCases:
+    """Edge case tests for plan endpoints."""
+
+    async def test_create_daily_plan_without_weekly(
+        self, authenticated_client: AsyncClient
+    ):
+        """Test creating a daily plan without a weekly plan reference."""
+        response = await authenticated_client.post(
+            "/api/plans/daily",
+            json={
+                "date": str(date.today() + timedelta(days=100)),
+                "summary": "Standalone daily plan",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["weekly_plan_id"] is None
+
+    async def test_create_plan_item_all_priorities(
+        self, authenticated_client: AsyncClient, test_daily_plan
+    ):
+        """Test creating plan items with all priority values."""
+        for priority in ["low", "medium", "high", "urgent"]:
+            response = await authenticated_client.post(
+                f"/api/plans/daily/{test_daily_plan.id}/items",
+                json={"title": f"Task {priority}", "priority": priority},
+            )
+            assert response.status_code == 201
+            assert response.json()["priority"] == priority
+
+    async def test_update_plan_item_reorder(
+        self, authenticated_client: AsyncClient, test_plan_item
+    ):
+        """Test reordering a plan item."""
+        response = await authenticated_client.patch(
+            f"/api/plans/items/{test_plan_item.id}",
+            json={"order": 10},
+        )
+        assert response.status_code == 200
+        assert response.json()["order"] == 10
+
+    async def test_weekly_plan_with_long_focus_areas(
+        self, authenticated_client: AsyncClient
+    ):
+        """Test creating weekly plan with long focus areas text."""
+        long_focus = ", ".join([f"Focus area {i}" for i in range(50)])
+        response = await authenticated_client.post(
+            "/api/plans/weekly",
+            json={
+                "week_start_date": str(date.today()),
+                "summary": "Test",
+                "focus_areas": long_focus,
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["focus_areas"] == long_focus

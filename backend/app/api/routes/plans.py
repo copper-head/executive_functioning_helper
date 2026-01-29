@@ -400,8 +400,14 @@ async def update_daily_plan(
         setattr(plan, field, value)
 
     await db.commit()
-    await db.refresh(plan)
-    return plan
+
+    # Reload with items to avoid greenlet issues
+    result = await db.execute(
+        select(DailyPlan)
+        .where(DailyPlan.id == plan_id)
+        .options(selectinload(DailyPlan.items))
+    )
+    return result.scalar_one()
 
 
 @router.delete("/daily/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)

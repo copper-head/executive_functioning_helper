@@ -256,7 +256,268 @@ class TestChat:
             "/api/agent/chat",
             json={"message": "Hello"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
+
+
+class TestChatWithContext:
+    """Tests for chat with context building."""
+
+    async def test_chat_with_goals_context(
+        self,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers: dict,
+    ):
+        """Test chat builds context from user goals."""
+        from app.main import app
+        from app.db.session import get_db
+        from app.llm.factory import get_llm_provider
+        from app.db.models import Goal, TimeHorizon, Priority
+        from httpx import AsyncClient, ASGITransport
+
+        # Create a goal for context
+        goal = Goal(
+            user_id=test_user.id,
+            title="Test Goal",
+            description="Goal description",
+            time_horizon=TimeHorizon.SHORT,
+            priority=Priority.HIGH,
+        )
+        db_session.add(goal)
+        await db_session.commit()
+
+        mock_provider = MagicMock()
+        mock_provider.chat = AsyncMock(
+            return_value=LLMResponse(content="Response with context", model="test-model")
+        )
+
+        async def override_get_db():
+            yield db_session
+
+        def override_get_llm():
+            return mock_provider
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_llm_provider] = override_get_llm
+
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers=auth_headers,
+            ) as client:
+                response = await client.post(
+                    "/api/agent/chat",
+                    json={"message": "Help me with my goals"},
+                )
+                assert response.status_code == 200
+                # Verify context was included in the LLM call
+                mock_provider.chat.assert_called_once()
+                call_kwargs = mock_provider.chat.call_args
+                assert "system_prompt" in call_kwargs.kwargs
+        finally:
+            app.dependency_overrides.clear()
+
+    async def test_chat_with_daily_planning_context(
+        self,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers: dict,
+    ):
+        """Test chat with daily planning context."""
+        from app.main import app
+        from app.db.session import get_db
+        from app.llm.factory import get_llm_provider
+        from app.db.models import DailyPlan, PlanItem, Priority
+        from datetime import date
+        from httpx import AsyncClient, ASGITransport
+
+        # Create a daily plan with items
+        plan = DailyPlan(
+            user_id=test_user.id,
+            date=date.today(),
+            summary="Today's plan",
+        )
+        db_session.add(plan)
+        await db_session.commit()
+        await db_session.refresh(plan)
+
+        item = PlanItem(
+            daily_plan_id=plan.id,
+            title="Task 1",
+            priority=Priority.HIGH,
+            order=1,
+        )
+        db_session.add(item)
+        await db_session.commit()
+
+        # Create conversation with context
+        conversation = AgentConversation(
+            user_id=test_user.id,
+            title="Planning chat",
+            context_type="daily_planning",
+            context_id=plan.id,
+        )
+        db_session.add(conversation)
+        await db_session.commit()
+        await db_session.refresh(conversation)
+
+        mock_provider = MagicMock()
+        mock_provider.chat = AsyncMock(
+            return_value=LLMResponse(content="Planning advice", model="test-model")
+        )
+
+        async def override_get_db():
+            yield db_session
+
+        def override_get_llm():
+            return mock_provider
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_llm_provider] = override_get_llm
+
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers=auth_headers,
+            ) as client:
+                response = await client.post(
+                    "/api/agent/chat",
+                    json={
+                        "message": "What should I focus on today?",
+                        "conversation_id": conversation.id,
+                    },
+                )
+                assert response.status_code == 200
+        finally:
+            app.dependency_overrides.clear()
+
+    async def test_chat_with_weekly_planning_context(
+        self,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers: dict,
+    ):
+        """Test chat with weekly planning context."""
+        from app.main import app
+        from app.db.session import get_db
+        from app.llm.factory import get_llm_provider
+        from app.db.models import WeeklyPlan
+        from datetime import date
+        from httpx import AsyncClient, ASGITransport
+
+        # Create a weekly plan
+        plan = WeeklyPlan(
+            user_id=test_user.id,
+            week_start_date=date.today(),
+            summary="Weekly goals",
+            focus_areas="Health, Work, Learning",
+        )
+        db_session.add(plan)
+        await db_session.commit()
+        await db_session.refresh(plan)
+
+        # Create conversation with context
+        conversation = AgentConversation(
+            user_id=test_user.id,
+            title="Weekly review",
+            context_type="weekly_planning",
+            context_id=plan.id,
+        )
+        db_session.add(conversation)
+        await db_session.commit()
+        await db_session.refresh(conversation)
+
+        mock_provider = MagicMock()
+        mock_provider.chat = AsyncMock(
+            return_value=LLMResponse(content="Weekly planning help", model="test-model")
+        )
+
+        async def override_get_db():
+            yield db_session
+
+        def override_get_llm():
+            return mock_provider
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_llm_provider] = override_get_llm
+
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers=auth_headers,
+            ) as client:
+                response = await client.post(
+                    "/api/agent/chat",
+                    json={
+                        "message": "Review my week",
+                        "conversation_id": conversation.id,
+                    },
+                )
+                assert response.status_code == 200
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestChatStream:
+    """Tests for streaming chat endpoint."""
+
+    async def test_chat_stream_new_conversation(
+        self,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers: dict,
+    ):
+        """Test streaming chat creates new conversation."""
+        from app.main import app
+        from app.db.session import get_db
+        from app.llm.factory import get_llm_provider
+        from httpx import AsyncClient, ASGITransport
+
+        async def mock_stream():
+            for chunk in ["Hello", " from", " stream"]:
+                yield chunk
+
+        mock_provider = MagicMock()
+        mock_provider.chat_stream = MagicMock(return_value=mock_stream())
+
+        async def override_get_db():
+            yield db_session
+
+        def override_get_llm():
+            return mock_provider
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_llm_provider] = override_get_llm
+
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers=auth_headers,
+            ) as client:
+                response = await client.post(
+                    "/api/agent/chat/stream",
+                    json={"message": "Stream test"},
+                )
+                assert response.status_code == 200
+                assert "text/event-stream" in response.headers.get("content-type", "")
+        finally:
+            app.dependency_overrides.clear()
+
+    async def test_chat_stream_unauthenticated(self, client: AsyncClient):
+        """Test streaming chat without authentication."""
+        response = await client.post(
+            "/api/agent/chat/stream",
+            json={"message": "Hello"},
+        )
+        assert response.status_code == 401
 
 
 class TestHealthCheck:

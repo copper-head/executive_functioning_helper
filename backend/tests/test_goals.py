@@ -41,7 +41,7 @@ class TestListGoals:
     async def test_list_goals_unauthenticated(self, client: AsyncClient):
         """Test listing goals without authentication fails."""
         response = await client.get("/api/goals")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
 class TestCreateGoal:
@@ -83,7 +83,7 @@ class TestCreateGoal:
             "/api/goals",
             json={"title": "Should Fail"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
 class TestGetGoal:
@@ -179,3 +179,73 @@ class TestDeleteGoal:
         """Test deleting a non-existent goal."""
         response = await authenticated_client.delete("/api/goals/99999")
         assert response.status_code == 404
+
+
+class TestGoalEdgeCases:
+    """Edge case tests for goal endpoints."""
+
+    async def test_create_goal_all_time_horizons(self, authenticated_client: AsyncClient):
+        """Test creating goals with all time horizon values."""
+        for horizon in ["short", "medium", "long"]:
+            response = await authenticated_client.post(
+                "/api/goals",
+                json={"title": f"Goal {horizon}", "time_horizon": horizon},
+            )
+            assert response.status_code == 201
+            assert response.json()["time_horizon"] == horizon
+
+    async def test_create_goal_all_priorities(self, authenticated_client: AsyncClient):
+        """Test creating goals with all priority values."""
+        for priority in ["low", "medium", "high", "urgent"]:
+            response = await authenticated_client.post(
+                "/api/goals",
+                json={"title": f"Goal {priority}", "priority": priority},
+            )
+            assert response.status_code == 201
+            assert response.json()["priority"] == priority
+
+    async def test_update_goal_all_statuses(
+        self, authenticated_client: AsyncClient, test_goal
+    ):
+        """Test updating goal through all status values."""
+        for status in ["active", "completed", "paused", "cancelled"]:
+            response = await authenticated_client.patch(
+                f"/api/goals/{test_goal.id}",
+                json={"status": status},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == status
+
+    async def test_create_goal_with_long_description(self, authenticated_client: AsyncClient):
+        """Test creating a goal with a long description."""
+        long_description = "A" * 1000
+        response = await authenticated_client.post(
+            "/api/goals",
+            json={"title": "Long Desc Goal", "description": long_description},
+        )
+        assert response.status_code == 201
+        assert response.json()["description"] == long_description
+
+    async def test_create_goal_missing_title(self, authenticated_client: AsyncClient):
+        """Test that missing title is rejected."""
+        response = await authenticated_client.post(
+            "/api/goals",
+            json={},
+        )
+        assert response.status_code == 422
+
+    async def test_create_goal_invalid_time_horizon(self, authenticated_client: AsyncClient):
+        """Test that invalid time horizon is rejected."""
+        response = await authenticated_client.post(
+            "/api/goals",
+            json={"title": "Test", "time_horizon": "invalid"},
+        )
+        assert response.status_code == 422
+
+    async def test_create_goal_invalid_priority(self, authenticated_client: AsyncClient):
+        """Test that invalid priority is rejected."""
+        response = await authenticated_client.post(
+            "/api/goals",
+            json={"title": "Test", "priority": "invalid"},
+        )
+        assert response.status_code == 422

@@ -1,5 +1,47 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
+
+from app.core.security import create_access_token, verify_token, verify_password, get_password_hash
+
+
+class TestSecurityFunctions:
+    """Tests for security helper functions."""
+
+    def test_password_hash_and_verify(self):
+        """Test password hashing and verification."""
+        password = "testpassword123"
+        hashed = get_password_hash(password)
+        assert hashed != password
+        assert verify_password(password, hashed)
+        assert not verify_password("wrongpassword", hashed)
+
+    def test_create_and_verify_token(self):
+        """Test token creation and verification."""
+        user_id = "123"
+        token = create_access_token(subject=user_id)
+        verified_id = verify_token(token)
+        assert verified_id == user_id
+
+    def test_token_with_custom_expiry(self):
+        """Test token with custom expiration time."""
+        user_id = "456"
+        token = create_access_token(subject=user_id, expires_delta=timedelta(hours=1))
+        verified_id = verify_token(token)
+        assert verified_id == user_id
+
+    def test_invalid_token_returns_none(self):
+        """Test that invalid tokens return None."""
+        result = verify_token("invalid.token.here")
+        assert result is None
+
+    def test_expired_token_returns_none(self):
+        """Test that expired tokens return None."""
+        user_id = "789"
+        # Create token that expired in the past
+        token = create_access_token(subject=user_id, expires_delta=timedelta(seconds=-1))
+        result = verify_token(token)
+        assert result is None
 
 
 class TestSignup:
@@ -75,7 +117,7 @@ class TestGetMe:
     async def test_get_me_unauthenticated(self, client: AsyncClient):
         """Test getting current user without authentication fails."""
         response = await client.get("/api/auth/me")
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     async def test_get_me_invalid_token(self, client: AsyncClient):
         """Test getting current user with invalid token fails."""
