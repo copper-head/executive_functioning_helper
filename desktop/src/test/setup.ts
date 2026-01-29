@@ -34,6 +34,9 @@ vi.stubGlobal('import', {
   },
 });
 
+// Mock Element.scrollIntoView (not implemented in jsdom)
+Element.prototype.scrollIntoView = vi.fn();
+
 // Reset mocks after each test
 afterEach(() => {
   vi.clearAllMocks();
